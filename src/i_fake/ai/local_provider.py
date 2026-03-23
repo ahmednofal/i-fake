@@ -75,7 +75,7 @@ class LocalProvider(AIProvider):
         log.debug("Requesting session plan from local model for persona %s …", persona.id[:8])
         raw = await self._chat(
             PLAN_SYSTEM,
-            plan_user_prompt(_persona_summary(persona), recent_themes),
+            plan_user_prompt(_persona_summary(persona), recent_themes, persona.activity_log or None),
             max_tokens=1400,
         )
         data = json.loads(raw)

@@ -59,7 +59,7 @@ class OpenAIProvider(AIProvider):
             model=self._model,
             messages=[
                 {"role": "system", "content": PLAN_SYSTEM},
-                {"role": "user", "content": plan_user_prompt(_persona_summary(persona), recent_themes)},
+                {"role": "user", "content": plan_user_prompt(_persona_summary(persona), recent_themes, persona.activity_log or None)},
             ],
             temperature=0.9,
             max_tokens=1400,

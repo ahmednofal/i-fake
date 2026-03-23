@@ -77,7 +77,13 @@ PLAN_SYSTEM = (
     "3. Mix action types — NOT just search+navigate+scroll. Include watch_video, click_link, "
     "add_to_cart, go_back, idle, hover as appropriate.\n"
     "4. Vary the sites visited — don't use the same domains every session.\n"
-    "5. Search queries must sound like a real person typed them — typos, fragments, local slang."
+    "5. Search queries must sound like a real person typed them — typos, fragments, local slang.\n\n"
+    "BEHAVIOR RULES — make sessions feel curious and immersive:\n"
+    "6. After a search the person READS the result snippets — include 'scroll' or 'read' before clicking.\n"
+    "7. After navigating to a page the person READS it — use 'read' with dwell 10-25s, not just 'scroll'.\n"
+    "8. Real people follow rabbit holes: search → click result → read → click a related link → read more.\n"
+    "9. Include 'go_back' when the person would naturally return to results and try a different link.\n"
+    "10. Sessions must feel like genuine curiosity-driven exploration, NOT a mechanical checklist."
 )
 
 PLAN_SCHEMA = """\
@@ -89,21 +95,38 @@ PLAN_SCHEMA = """\
       "type": "<one of: search | navigate | click_link | scroll | read | fill_form | hover | go_back | watch_video | add_to_cart | idle>",
       "target": "<URL, search query, or CSS selector — or null>",
       "value":  "<text to type or other value — or null>",
-      "dwell_min": <seconds — keep between 1 and 3>,
-      "dwell_max": <seconds — keep between 2 and 5>,
+      "dwell_min": <seconds — 1-3 for scroll/hover/click, 10-20 for read/watch_video>,
+      "dwell_max": <seconds — 2-6 for scroll/hover/click, 20-40 for read/watch_video>,
       "description": "<short human-readable description>"
     }
   ]
 }"""
 
 
-def plan_user_prompt(persona_summary: str, recent_themes: list[str] | None = None) -> str:
+def plan_user_prompt(
+    persona_summary: str,
+    recent_themes: list[str] | None = None,
+    activity_log: list[str] | None = None,
+) -> str:
     avoid = ""
     if recent_themes:
         avoid = f"\nRECENT THEMES TO AVOID: {', '.join(recent_themes)}\n"
+    history = ""
+    if activity_log:
+        # Show the last 10 entries most-recent-last so the AI sees the trajectory
+        entries = activity_log[-10:]
+        history = (
+            "\nBROWSING HISTORY (most recent last — let curiosity naturally evolve from this):\n"
+            + "\n".join(f"  • {e}" for e in entries)
+            + "\n"
+        )
     return (
-        f"Persona:\n{persona_summary}\n{avoid}\n"
-        f"Create a 5–7 step browsing session plan that feels natural for this person.\n"
+        f"Persona:\n{persona_summary}\n{avoid}{history}\n"
+        f"Create a 5\u20138 step browsing session that feels like a genuinely curious human exploring the web.\n"
+        f"The person should CONSUME content (read articles, watch videos) \u2014 not just hop between pages.\n"
+        f"Always include 'read' actions (dwell 10-25s) after navigating to content pages.\n"
+        f"Let the browsing history above subtly shape where their curiosity drifts \u2014 interests deepen, "
+        f"new threads branch off, old ones resurface. Don't repeat the same session \u2014 evolve.\n"
         f"Keep descriptions concise (under 60 characters each).\n"
         f"Schema:\n{PLAN_SCHEMA}"
     )

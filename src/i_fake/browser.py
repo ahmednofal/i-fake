@@ -441,7 +441,7 @@ class BrowserController:
             await self._page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         except Exception as exc:
             log.warning("Search navigation failed: %s", exc)
-        await human_sleep(0.5, 1.2)
+        await self._browse_search_results()
 
     async def _act_navigate(self, url: str) -> None:
         assert self._page
@@ -452,7 +452,7 @@ class BrowserController:
             await self._page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         except Exception as exc:
             log.warning("Navigation to %s timed out / failed: %s", url, exc)
-        await human_sleep(0.5, 1.0)
+        await self._orientation_pause()
 
     async def _act_click_link(self, target: Optional[str]) -> None:
         assert self._page
@@ -501,8 +501,21 @@ class BrowserController:
 
     async def _act_read(self, dwell_min: float, dwell_max: float) -> None:
         log.info("  📖  Reading …")
-        await self._scroll("down", steps=random.randint(1, 3))
-        await human_sleep(dwell_min, dwell_max)
+        # Simulate paragraph-by-paragraph reading — floor at 8s regardless of plan hint
+        total = random.uniform(max(dwell_min, 8.0), max(dwell_max, 18.0))
+        elapsed = 0.0
+        while elapsed < total - 1.0:
+            chunk = random.uniform(3.0, 8.0)
+            wait = min(chunk, total - elapsed)
+            await human_sleep(wait * 0.85, wait * 1.15)
+            elapsed += chunk
+            if elapsed < total - 1.0:
+                await self._scroll("down", steps=random.randint(1, 3))
+                # Occasionally scroll back up — re-reading something interesting
+                if random.random() < 0.22:
+                    await self._scroll("up", steps=1)
+                    await human_sleep(1.5, 3.0)
+                    elapsed += 2.0
 
     async def _act_hover(self, target: Optional[str]) -> None:
         assert self._page
@@ -532,6 +545,27 @@ class BrowserController:
         except Exception:
             pass
         await human_sleep(0.4, 0.8)
+
+    async def _browse_search_results(self) -> None:
+        """Simulate scanning search result snippets before clicking — called after every search."""
+        # Initial pause: eyes land on page, scan the top results
+        await human_sleep(1.5, 3.5)
+        # Scroll to see more results, pausing to actually read snippets
+        for _ in range(random.randint(1, 3)):
+            await self._scroll("down", steps=random.randint(1, 2))
+            await human_sleep(1.5, 4.0)
+        # Sometimes hover over a result (considering it)
+        if random.random() < 0.45:
+            await self._act_hover(None)
+
+    async def _orientation_pause(self) -> None:
+        """Simulate the brief orientation a human does after landing on a new page."""
+        # Pause to see where you are
+        await human_sleep(1.5, 4.0)
+        # Scroll down to see what's on the page
+        if random.random() < 0.75:
+            await self._scroll("down", steps=random.randint(1, 3))
+            await human_sleep(1.0, 2.5)
 
     async def _act_idle(self, dwell_min: float, dwell_max: float) -> None:
         log.info("  ⏸️   Idle …")
@@ -595,8 +629,12 @@ class BrowserController:
             except Exception as exc:
                 log.warning("Action %d failed — skipping: %s", i, exc)
 
-            # Brief inter-action gap (READ/IDLE/WATCH_VIDEO handle dwell internally)
-            await human_sleep(0.3, 0.8)
+            # Spontaneous micro-behaviours — real people aren't mechanical
+            if random.random() < 0.30:
+                await self._scroll("down", steps=random.randint(1, 2))
+            if random.random() < 0.20:
+                await self._act_hover(None)
+            await human_sleep(0.5, 1.5)
 
         log.info("✔  Plan complete: %d/%d actions done", completed, len(plan.actions))
         return completed

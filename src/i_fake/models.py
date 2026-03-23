@@ -47,6 +47,7 @@ class Persona(BaseModel):
     income_bracket: IncomeBracket
     political_leaning: Optional[str] = None
     personality_notes: str = ""
+    activity_log: list[str] = Field(default_factory=list)  # recent session summaries
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_used: Optional[datetime] = None
     active: bool = True

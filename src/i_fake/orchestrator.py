@@ -15,10 +15,31 @@ from apscheduler.triggers.interval import IntervalTrigger
 from .ai.provider import AIProvider
 from .browser import BrowserController
 from .config import Settings
-from .models import SessionRecord, SessionStatus
+from .models import BrowsingPlan, SessionRecord, SessionStatus
 from .persona import PersonaStore
 from .planner import SessionPlanner
 from .utils.logger import get_logger
+
+
+def _session_summary(plan: BrowsingPlan) -> str:
+    """Distil a plan into a one-line activity log entry."""
+    from .models import ActionType
+    searches = [
+        a.value or a.target or ""
+        for a in plan.actions
+        if a.type == ActionType.SEARCH and (a.value or a.target)
+    ]
+    sites = list(dict.fromkeys(
+        (a.target or "").split("/")[2].replace("www.", "")
+        for a in plan.actions
+        if a.type == ActionType.NAVIGATE and a.target
+    ))
+    parts = [f"[{plan.session_theme}]"]
+    if searches:
+        parts.append("searched: " + ", ".join(f"'{q}'" for q in searches[:3]))
+    if sites:
+        parts.append("visited: " + ", ".join(sites[:3]))
+    return " | ".join(parts)
 
 log = get_logger("i_fake.orchestrator")
 
@@ -88,6 +109,8 @@ class Orchestrator:
             await browser.stop()
             record.completed_at = datetime.utcnow()
             self._store.mark_used(persona.id)
+            if record.status == SessionStatus.COMPLETED:
+                self._store.append_activity(persona.id, _session_summary(plan))
             self._save_record(record)
 
         log.info(
@@ -146,7 +169,11 @@ class Orchestrator:
                 finally:
                     record.completed_at = datetime.utcnow()
                     self._store.mark_used(persona.id)
+                    if record.status == SessionStatus.COMPLETED:
+                        self._store.append_activity(persona.id, _session_summary(plan))
                     self._save_record(record)
+                    # Reload so next plan sees the updated activity_log
+                    persona = self._store.load(persona.id)
 
                 log.info(
                     "Mini-session #%d done (%d actions) — starting next …",

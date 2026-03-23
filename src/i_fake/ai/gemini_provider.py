@@ -141,7 +141,7 @@ class GeminiProvider(AIProvider):
         log.debug("Requesting session plan from Gemini for persona %s …", persona.id[:8])
         raw = await self._chat(
             PLAN_SYSTEM,
-            plan_user_prompt(_persona_summary(persona), recent_themes),
+            plan_user_prompt(_persona_summary(persona), recent_themes, persona.activity_log or None),
             temperature=0.9,
             max_tokens=4096,
         )

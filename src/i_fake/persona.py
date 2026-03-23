@@ -65,6 +65,15 @@ class PersonaStore:
         persona.last_used = datetime.utcnow()
         self.save(persona)
 
+    def append_activity(self, persona_id: str, summary: str, max_entries: int = 30) -> None:
+        """Append a one-line session summary to the persona's activity log."""
+        persona = self.load(persona_id)
+        persona.activity_log.append(summary)
+        if len(persona.activity_log) > max_entries:
+            persona.activity_log = persona.activity_log[-max_entries:]
+        self.save(persona)
+        log.debug("Activity logged for %s: %s", persona_id[:8], summary)
+
     # ── Rotation ───────────────────────────────────────────────────────────────
 
     def rotate_old(self) -> list[str]:

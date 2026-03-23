@@ -49,7 +49,7 @@ class AnthropicProvider(AIProvider):
             max_tokens=1400,
             system=PLAN_SYSTEM,
             messages=[
-                {"role": "user", "content": plan_user_prompt(_persona_summary(persona), recent_themes)}
+                {"role": "user", "content": plan_user_prompt(_persona_summary(persona), recent_themes, persona.activity_log or None)}
             ],
         )
         raw = msg.content[0].text
